@@ -1,0 +1,324 @@
+{% extends "converter/base.html" %}
+{% load static %}
+
+{% block title %}PixelForge — Image to Pixel Art Converter{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================== HERO -->
+<section class="pf-hero" aria-labelledby="hero-title">
+  <div class="pf-hero__inner">
+    <div class="pf-hero__text">
+      <h1 id="hero-title" class="pf-hero__title">
+        Transform Ordinary Images<br>into <span class="pf-accent">Retro Pixel Art</span>
+      </h1>
+      <p class="pf-hero__subtitle">
+        Upload any photograph and convert it into authentic pixel art using classic
+        digital image-processing techniques — pixelation and colour quantization.
+        No AI. No cloud. Everything runs locally in your browser session.
+      </p>
+    </div>
+    <div class="pf-hero__tags" aria-label="Supported formats">
+      <span class="pf-tag"><i class="bi bi-file-image"></i> JPG</span>
+      <span class="pf-tag"><i class="bi bi-file-image"></i> PNG</span>
+      <span class="pf-tag"><i class="bi bi-file-image"></i> WEBP</span>
+      <span class="pf-tag pf-tag--muted"><i class="bi bi-hdd"></i> Max 10 MB</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================= MAIN TOOL -->
+<section class="pf-tool" aria-label="Conversion tool">
+  <div class="pf-tool__inner">
+
+    <!-- ------------------------------------------------ LEFT COLUMN: Controls -->
+    <aside class="pf-panel pf-panel--controls" aria-label="Controls">
+
+      <!-- Upload area -->
+      <div class="pf-section-label">
+        <i class="bi bi-upload"></i> Upload Image
+      </div>
+
+      <form id="convert-form" method="post" action="{% url 'converter:convert' %}" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <!-- Drop zone -->
+        <div id="drop-zone"
+             class="pf-dropzone"
+             role="button"
+             tabindex="0"
+             aria-label="Drop image here or click to browse"
+             aria-describedby="drop-hint">
+          <div class="pf-dropzone__icon" aria-hidden="true">
+            <i class="bi bi-cloud-arrow-up"></i>
+          </div>
+          <p class="pf-dropzone__primary">Drop image here</p>
+          <p id="drop-hint" class="pf-dropzone__secondary">or click to browse — JPG, PNG, WEBP up to 10 MB</p>
+          <div class="pf-dropzone__preview-wrap" id="preview-wrap" hidden>
+            <img id="original-preview-thumb" class="pf-dropzone__thumb" alt="Upload preview" />
+            <span id="preview-filename" class="pf-dropzone__filename"></span>
+          </div>
+        </div>
+        <input type="file"
+               id="image-input"
+               name="image"
+               accept=".jpg,.jpeg,.png,.webp"
+               class="pf-file-input"
+               aria-label="Image file input" />
+
+        <!-- Global error banner -->
+        <div id="error-banner" class="pf-error-banner" role="alert" hidden></div>
+
+        <!-- ---- Settings panel ---- -->
+        <div class="pf-section-label" style="margin-top:1.5rem;">
+          <i class="bi bi-sliders"></i> Conversion Settings
+        </div>
+
+        <div class="pf-settings">
+
+          <!-- Conversion mode -->
+          <div class="pf-field">
+            <label for="conversion_mode" class="pf-label">Conversion Mode</label>
+            <select id="conversion_mode" name="conversion_mode" class="pf-select">
+              {% for val, label in mode_choices %}
+              <option value="{{ val }}" {% if val == "pixel_art" %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <p class="pf-hint" id="mode-hint-text"></p>
+          </div>
+
+          <!-- Pixel size slider -->
+          <div class="pf-field" id="pixel-size-field">
+            <label for="pixel_size" class="pf-label">
+              Pixelation Strength
+              <span class="pf-badge-value" id="pixel-size-display">8 px</span>
+            </label>
+            <input type="range"
+                   id="pixel_size"
+                   name="pixel_size"
+                   min="2" max="64" value="8" step="1"
+                   class="pf-slider"
+                   aria-valuemin="2" aria-valuemax="64" aria-valuenow="8"
+                   aria-label="Pixel block size" />
+            <div class="pf-slider-labels">
+              <span>Fine (2px)</span>
+              <span>Coarse (64px)</span>
+            </div>
+          </div>
+
+          <!-- Color count selector -->
+          <div class="pf-field" id="color-count-field">
+            <label for="color_count" class="pf-label">Color Palette</label>
+            <div class="pf-color-grid" role="group" aria-label="Number of colors">
+              {% for val, label in color_choices %}
+              <button type="button"
+                      class="pf-color-btn {% if val == 16 %}pf-color-btn--active{% endif %}"
+                      data-value="{{ val }}"
+                      aria-pressed="{% if val == 16 %}true{% else %}false{% endif %}">
+                {{ val }}
+              </button>
+              {% endfor %}
+            </div>
+            <input type="hidden" id="color_count" name="color_count" value="16" />
+          </div>
+
+        </div><!-- /.pf-settings -->
+
+        <!-- Action buttons -->
+        <div class="pf-actions">
+          <button type="submit" id="convert-btn" class="pf-btn pf-btn--primary" disabled>
+            <i class="bi bi-magic"></i>
+            <span id="convert-btn-text">Convert to Pixel Art</span>
+          </button>
+          <button type="button" id="reset-btn" class="pf-btn pf-btn--ghost">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+          </button>
+        </div>
+
+      </form><!-- /#convert-form -->
+    </aside>
+
+    <!-- ------------------------------------------------ RIGHT COLUMN: Previews -->
+    <section class="pf-panel pf-panel--preview" aria-label="Image preview">
+
+      <!-- Idle state -->
+      <div id="preview-idle" class="pf-preview-idle">
+        <div class="pf-preview-idle__icon" aria-hidden="true">
+          <i class="bi bi-image"></i>
+        </div>
+        <p class="pf-preview-idle__text">Upload an image and click Convert to see the result here.</p>
+      </div>
+
+      <!-- Loading state -->
+      <div id="preview-loading" class="pf-preview-loading" hidden aria-live="polite">
+        <div class="pf-spinner" aria-label="Processing image…" role="status">
+          <div class="pf-spinner__ring"></div>
+        </div>
+        <p class="pf-preview-loading__text">Processing image…</p>
+      </div>
+
+      <!-- Result state -->
+      <div id="preview-result" hidden>
+
+        <div class="pf-result-header">
+          <div class="pf-section-label" style="margin:0">
+            <i class="bi bi-check2-circle"></i> Conversion Complete
+          </div>
+          <span id="result-mode-label" class="pf-tag pf-tag--success"></span>
+        </div>
+
+        <!-- Side-by-side image comparison -->
+        <div class="pf-compare">
+          <div class="pf-compare__pane">
+            <div class="pf-compare__label">Original</div>
+            <div class="pf-compare__img-wrap">
+              <img id="compare-original" class="pf-compare__img" alt="Original image" />
+            </div>
+            <div class="pf-compare__meta" id="original-meta"></div>
+          </div>
+          <div class="pf-compare__divider" aria-hidden="true"></div>
+          <div class="pf-compare__pane">
+            <div class="pf-compare__label pf-compare__label--accent">Pixel Art</div>
+            <div class="pf-compare__img-wrap">
+              <img id="compare-result" class="pf-compare__img" alt="Pixel art result" />
+            </div>
+            <div class="pf-compare__meta" id="result-meta"></div>
+          </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div class="pf-stats-bar" aria-label="Conversion details">
+          <div class="pf-stat">
+            <span class="pf-stat__label">Pixel Size</span>
+            <span class="pf-stat__value" id="stat-pixel-size">—</span>
+          </div>
+          <div class="pf-stat">
+            <span class="pf-stat__label">Color Count</span>
+            <span class="pf-stat__value" id="stat-color-count">—</span>
+          </div>
+          <div class="pf-stat">
+            <span class="pf-stat__label">Output Dimensions</span>
+            <span class="pf-stat__value" id="stat-dimensions">—</span>
+          </div>
+        </div>
+
+        <!-- Download -->
+        <div class="pf-download-row">
+          <a id="download-btn"
+             href="{% url 'converter:download' %}"
+             class="pf-btn pf-btn--primary pf-btn--download"
+             download>
+            <i class="bi bi-download"></i> Download PNG
+          </a>
+          <span class="pf-download-hint">Saved as high-quality PNG — no compression artifacts</span>
+        </div>
+
+      </div><!-- /#preview-result -->
+
+    </section>
+  </div><!-- /.pf-tool__inner -->
+</section>
+
+<!-- ======================================================== ABOUT SECTION -->
+<section class="pf-about" aria-labelledby="about-title">
+  <div class="pf-about__inner">
+    <h2 id="about-title" class="pf-about__title">About the Algorithms</h2>
+    <p class="pf-about__lead">
+      PixelForge applies two classical image-processing algorithms entirely in Python.
+      No neural network, no pre-trained model, and no external API is involved.
+      Every operation is deterministic and mathematically well-defined.
+    </p>
+
+    <div class="pf-algo-grid">
+
+      <!-- Pixelation -->
+      <article class="pf-algo-card" aria-label="Pixelation algorithm">
+        <div class="pf-algo-card__icon" aria-hidden="true"><i class="bi bi-grid-3x3-gap"></i></div>
+        <h3 class="pf-algo-card__title">Pixelation</h3>
+        <p class="pf-algo-card__body">
+          The algorithm first computes a reduced resolution by integer division:
+        </p>
+        <div class="pf-formula" aria-label="Formula for small width and height">
+          <code>W<sub>small</sub> = ⌊W / s⌋&nbsp;&nbsp;&nbsp;H<sub>small</sub> = ⌊H / s⌋</code>
+        </div>
+        <p class="pf-algo-card__body">
+          where <em>s</em> is the pixel block size. The image is downsampled
+          to this smaller resolution using LANCZOS antialiasing, then upscaled
+          back to the original dimensions <em>W × H</em> using
+          <strong>nearest-neighbour interpolation</strong>.
+          Nearest-neighbour assigns every destination pixel the value of the
+          geometrically nearest source pixel, producing sharp, hard-edged
+          square blocks — the visual hallmark of pixel art.
+          Larger values of <em>s</em> produce fewer, larger blocks and a
+          stronger retro effect.
+        </p>
+      </article>
+
+      <!-- Color quantization -->
+      <article class="pf-algo-card" aria-label="Color quantization algorithm">
+        <div class="pf-algo-card__icon" aria-hidden="true"><i class="bi bi-palette"></i></div>
+        <h3 class="pf-algo-card__title">Colour Quantization</h3>
+        <p class="pf-algo-card__body">
+          A photograph may contain millions of distinct RGB values.
+          Colour quantization partitions that colour space into <em>k</em>
+          regions using the <strong>median-cut algorithm</strong>
+          (implemented in Pillow's <code>Image.quantize()</code>):
+        </p>
+        <ol class="pf-algo-list">
+          <li>Find the colour channel with the greatest range.</li>
+          <li>Sort all colours along that channel.</li>
+          <li>Split the set at the median into two equal halves.</li>
+          <li>Repeat recursively until <em>k</em> groups are formed.</li>
+          <li>Replace every pixel's colour with its group's representative colour.</li>
+        </ol>
+        <p class="pf-algo-card__body">
+          The result has at most <em>k</em> unique colours, giving the
+          flat, poster-like appearance common in retro game sprites and
+          8-bit graphics.
+        </p>
+      </article>
+
+      <!-- Combined -->
+      <article class="pf-algo-card pf-algo-card--wide" aria-label="Combined pixel art algorithm">
+        <div class="pf-algo-card__icon" aria-hidden="true"><i class="bi bi-stars"></i></div>
+        <h3 class="pf-algo-card__title">Combined Pixel Art Conversion</h3>
+        <p class="pf-algo-card__body">
+          The primary mode chains both operations in a precise sequence for optimal quality:
+        </p>
+        <ol class="pf-algo-list">
+          <li><strong>Normalise</strong> — convert the input to RGB, handling transparent (RGBA) and grayscale images.</li>
+          <li><strong>Downsample</strong> — reduce to <em>W<sub>small</sub> × H<sub>small</sub></em> using LANCZOS antialiasing.</li>
+          <li><strong>Quantize</strong> — apply median-cut colour quantization to the <em>small</em> image, limiting the palette to <em>k</em> colours.</li>
+          <li><strong>Upscale</strong> — enlarge back to <em>W × H</em> with nearest-neighbour interpolation.</li>
+        </ol>
+        <p class="pf-algo-card__body">
+          Performing quantization on the downsampled image (step 3) is intentional:
+          the smaller image contains only the colours that will actually appear
+          in the final pixel-art blocks, so the <em>k</em>-colour palette
+          represents the output faithfully.
+          The combination of hard pixel edges and a restricted palette faithfully
+          recreates the aesthetic of 8-bit and 16-bit era video game graphics.
+        </p>
+        <p class="pf-algo-card__body">
+          All operations are performed in memory using Python and Pillow.
+          The application contains no trained weights, no inference engine,
+          and makes no external network requests during conversion.
+        </p>
+      </article>
+
+    </div><!-- /.pf-algo-grid -->
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Pass Django CSRF token and URLs to the JS module
+  window.PIXELFORGE = {
+    convertUrl: "{% url 'converter:convert' %}",
+    downloadUrl: "{% url 'converter:download' %}",
+    csrfToken: "{{ csrf_token }}",
+  };
+</script>
+{% endblock %}

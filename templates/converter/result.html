@@ -1,0 +1,17 @@
+{% extends "converter/base.html" %}
+{% comment %}
+result.html — Reserved for potential future standalone result page.
+Currently, conversion results are shown inline on the index page via AJAX.
+This template exists as a fallback / extension point.
+{% endcomment %}
+{% block title %}Conversion Result — PixelForge{% endblock %}
+{% block content %}
+<section class="pf-hero">
+  <div class="pf-hero__inner">
+    <h1 class="pf-hero__title">Result</h1>
+    <p class="pf-hero__subtitle">
+      Return to the <a href="{% url 'converter:index' %}">main page</a> to convert an image.
+    </p>
+  </div>
+</section>
+{% endblock %}

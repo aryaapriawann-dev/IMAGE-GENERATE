@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PixelForge — Transform ordinary images into retro pixel art using traditional image-processing algorithms. A Digital Image Processing university project." />
+  <title>{% block title %}PixelForge — Image to Pixel Art Converter{% endblock %}</title>
+
+  {% load static %}
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- ================================================================ NAVBAR -->
+  <nav class="pf-nav" role="navigation" aria-label="Main navigation">
+    <div class="pf-nav__inner">
+      <a href="{% url 'converter:index' %}" class="pf-nav__brand" aria-label="PixelForge home">
+        <span class="pf-nav__logo" aria-hidden="true">
+          <i class="bi bi-grid-3x3-gap-fill"></i>
+        </span>
+        <span class="pf-nav__name">Pixel<span class="pf-nav__accent">Forge</span></span>
+      </a>
+      <div class="pf-nav__right">
+        <span class="pf-nav__badge">DIP Project</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================================== MAIN CONTENT -->
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ================================================================= FOOTER -->
+  <footer class="pf-footer" role="contentinfo">
+    <div class="pf-footer__inner">
+      <p class="pf-footer__text">
+        <strong>PixelForge</strong> — Digital Image Processing Project
+        &nbsp;|&nbsp;
+        Built with Python&nbsp;3.12, Django&nbsp;5, and Pillow
+        &nbsp;|&nbsp;
+        All processing uses deterministic algorithms — no AI or ML
+      </p>
+    </div>
+  </footer>
+
+  <!-- Main JS -->
+  <script src="{% static 'js/app.js' %}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
